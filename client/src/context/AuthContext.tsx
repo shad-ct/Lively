@@ -206,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         firebaseUser,
-        loading: loading || !firebaseInitialized,
+        loading: (loading || !firebaseInitialized) && !error,
         error,
         signInWithGoogle,
         completeProfileSetup,

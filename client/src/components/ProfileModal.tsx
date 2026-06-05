@@ -22,7 +22,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const { user, completeProfileSetup } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [selectedStyleIndex, setSelectedStyleIndex] = useState(0);
-  const [seed, setSeed] = useState(user?.name || 'Lively');
+  const [seed, setSeed] = useState(user?.name || 'PresentSync');
   const [isManualSeed, setIsManualSeed] = useState(false);
   const [avatarDataUrl, setAvatarDataUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     if (!isOpen) return;
     try {
       const avatar = createAvatar(styles[selectedStyleIndex].value as any, {
-        seed: seed.trim() || 'Lively',
+        seed: seed.trim() || 'PresentSync',
       });
       
       const dataUri = avatar.toDataUri();
@@ -106,7 +106,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             Customize Presenter Profile
           </h2>
           <p className="text-zinc-400 text-xs">
-            Edit your display details and avatar for Lively rooms.
+            Edit your display details and avatar for PresentSync rooms.
           </p>
         </div>
 

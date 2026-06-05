@@ -271,9 +271,9 @@ export const AttendeeView: React.FC<AttendeeViewProps> = ({
       <header className="border-b border-zinc-900 bg-zinc-900/10 backdrop-blur-md px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 bg-zinc-100 rounded-md flex items-center justify-center text-zinc-950 font-bold text-sm">
-            L
+            P
           </div>
-          <span className="font-extrabold text-sm tracking-tight text-white">Lively Client</span>
+          <span className="font-extrabold text-sm tracking-tight text-white">PresentSync Client</span>
         </div>
         
         <div className="flex items-center gap-2">

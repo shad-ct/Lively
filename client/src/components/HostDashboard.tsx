@@ -476,10 +476,10 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center text-zinc-950 font-extrabold text-base">
-                L
+                P
               </div>
               <div>
-                <h1 className="font-extrabold text-lg leading-none tracking-tight text-white">Lively Dashboard</h1>
+                <h1 className="font-extrabold text-lg leading-none tracking-tight text-white">PresentSync Dashboard</h1>
                 <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">● Presentation Live</span>
               </div>
             </div>

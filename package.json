@@ -1,5 +1,5 @@
 {
-  "name": "lively-monorepo",
+  "name": "presentsync-monorepo",
   "private": true,
   "workspaces": [
     "client",

@@ -217,7 +217,7 @@ function AppContent() {
             <div className="h-12 w-12 rounded-full border-t-2 border-r-2 border-violet-500 animate-spin mx-auto"></div>
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">Lively Authentication</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">PresentSync Authentication</h2>
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">
               Securing session handshake keys...
             </p>
@@ -243,9 +243,9 @@ function AppContent() {
             <header className="w-full max-w-4xl mx-auto flex items-center justify-between py-4 border-b border-zinc-900">
               <div className="flex items-center gap-2">
                 <div className="h-9 w-9 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-950 font-bold text-lg shadow-lg shadow-zinc-100/10">
-                  L
+                  P
                 </div>
-                <span className="font-bold text-xl tracking-tight text-white">Lively</span>
+                <span className="font-bold text-xl tracking-tight text-white">PresentSync</span>
               </div>
             </header>
 
@@ -253,7 +253,7 @@ function AppContent() {
             <main className="w-full max-w-md mx-auto my-auto py-12 flex flex-col gap-8">
               <div className="text-center space-y-2">
                 <h1 className="text-4xl font-extrabold tracking-tight text-white">
-                  Lively Command Center
+                  PresentSync Command Center
                 </h1>
                 <p className="text-zinc-400 text-sm">
                   Real-time synchronization for presenter-led interactive rooms.
@@ -271,7 +271,7 @@ function AppContent() {
                 </div>
 
                 {(localError || authError) && (
-                  <div className="text-xs font-semibold text-rose-500 bg-rose-950/20 border border-rose-950/50 rounded-lg p-3 relative flex items-center justify-between">
+                  <div className="text-xs font-semibold text-rose-550 bg-rose-950/20 border border-rose-950/50 rounded-lg p-3 relative flex items-center justify-between">
                     <span>{localError || authError}</span>
                     <button 
                       onClick={() => { setLocalError(''); clearError(); }}
@@ -295,7 +295,7 @@ function AppContent() {
 
             {/* Footer */}
             <footer className="w-full max-w-4xl mx-auto py-4 text-center text-xs text-zinc-650 border-t border-zinc-900">
-              © 2026 Lively Inc. All rights reserved. Real-time sub-second sync active.
+              © 2026 PresentSync Inc. All rights reserved. Real-time sub-second sync active.
             </footer>
           </div>
         ) : (

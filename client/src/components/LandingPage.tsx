@@ -53,9 +53,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="w-full max-w-4xl mx-auto flex items-center justify-between py-4 border-b border-zinc-900">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-950 font-bold text-lg shadow-lg shadow-zinc-100/10">
-            L
+            P
           </div>
-          <span className="font-bold text-xl tracking-tight text-white">Lively</span>
+          <span className="font-bold text-xl tracking-tight text-white">PresentSync</span>
         </div>
         <div className="flex items-center gap-4 text-sm">
           {initialName && (
@@ -174,7 +174,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Footer */}
       <footer className="w-full max-w-4xl mx-auto py-4 text-center text-xs text-zinc-600 border-t border-zinc-900">
-        © 2026 Lively Inc. All rights reserved. Real-time sub-second sync active.
+        © 2026 PresentSync Inc. All rights reserved. Real-time sub-second sync active.
       </footer>
 
       <ProfileModal 

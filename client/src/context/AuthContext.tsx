@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { type User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
-import { 
-  auth, 
-  googleProvider, 
-  signInWithPopup, 
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
   signOut,
   initializeFirebase
 } from '../config/firebase';
@@ -31,10 +31,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const getBackendUrl = () => {
-  if (typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1' || 
-       window.location.hostname.startsWith('192.168.'))) {
+  if (typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.'))) {
     return `http://${window.location.hostname}:5000`;
   }
   return import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchConfigAndInit = async () => {
       try {
         const response = await axios.get(`${BACKEND_URL}/api/auth/config`);
-        
+
         // Initialize Firebase dynamically with fetched configuration parameters
         const activeAuth = initializeFirebase(response.data);
 
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 throw new Error('Authentication handshake failed.');
               }
             } catch (err: any) {
-              console.error('Firebase Auth handshake error:', err);
+              console.error('Firebase Auth handshake error:', err.response?.data || err);
               setError(err.response?.data?.error || err.message || 'Token verification failed.');
               setUser(null);
               setFirebaseUser(null);

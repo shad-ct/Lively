@@ -3,72 +3,20 @@ import { io, Socket } from 'socket.io-client';
 import { LandingPage } from './components/LandingPage';
 import { HostDashboard } from './components/HostDashboard';
 import { AttendeeView } from './components/AttendeeView';
-import { AuthProvider, useAuth, BACKEND_URL } from './context/AuthContext';
-import { Chrome } from 'lucide-react';
+import { JoinSession } from './components/JoinSession';
 
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_URL || BACKEND_URL;
 
 function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
-
-function LoadingScreen() {
-  const [showColdStartMessage, setShowColdStartMessage] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowColdStartMessage(true);
-    }, 4500); // Show after 4.5 seconds of loading
-    return () => clearTimeout(timer);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-center select-none text-zinc-100">
-      <div className="space-y-6 max-w-sm animate-fade-in">
-        <div className="relative inline-block">
-          <div className="h-12 w-12 rounded-full border-t-2 border-r-2 border-violet-500 animate-spin mx-auto"></div>
-        </div>
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-white tracking-tight">PresentSync Authentication</h2>
-          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest animate-pulse">
-            Securing session handshake keys...
-          </p>
-          {showColdStartMessage && (
-            <div className="text-amber-400/90 text-xs mt-2 bg-amber-950/20 border border-amber-950/50 rounded-xl p-3.5 animate-fade-in space-y-1">
-              <div className="font-bold">⚠️ Server is waking up</div>
-              <div className="text-zinc-400">
-                The free-tier hosting server takes around 50 seconds to boot up on the first load. Thank you for your patience!
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <AppContent />;
 }
 
 function AppContent() {
   // Routing states
-  const [route, setRoute] = useState<'landing' | 'host' | 'attendee'>('landing');
+  const [route, setRoute] = useState<'landing' | 'host' | 'attendee' | 'join'>('landing');
   const [roomCode, setRoomCode] = useState('');
-  const [attendeeName, setAttendeeName] = useState('');
-
-  // Authentication context
-  const {
-    user: authenticatedUser,
-    loading: authLoading,
-    error: authError,
-    signInWithGoogle,
-    logOut: handleLogout,
-    clearError
-  } = useAuth();
-
-  // Local Form state for login wall
-  const [localError, setLocalError] = useState('');
+  const [attendeeName, setAttendeeName] = useState(() => localStorage.getItem('name') || '');
 
   // Socket state
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -108,10 +56,15 @@ function AppContent() {
       } else if (roomMatch) {
         const code = roomMatch[1].toUpperCase();
         setRoomCode(code);
-        if (attendeeName) {
+        
+        const storedName = localStorage.getItem('name');
+        const storedGuestId = localStorage.getItem('guestId');
+
+        if (storedName && storedGuestId) {
+          setAttendeeName(storedName);
           setRoute('attendee');
         } else {
-          setRoute('landing');
+          setRoute('join');
         }
       } else {
         setRoute('landing');
@@ -123,7 +76,7 @@ function AppContent() {
     return () => {
       window.removeEventListener('popstate', handleLocationChange);
     };
-  }, [roomCode, attendeeName]);
+  }, [roomCode]);
 
   // Cleanup socket on unmount
   useEffect(() => {
@@ -165,7 +118,6 @@ function AppContent() {
     s.emit('create_room', (res: { success: boolean; code: string; hostToken: string; error?: string }) => {
       if (res.success) {
         setRoomCode(res.code);
-        // Save token to session storage in case of refresh (optional enhancement)
         sessionStorage.setItem(`host_token_${res.code}`, res.hostToken);
 
         // Push state & update route
@@ -178,12 +130,28 @@ function AppContent() {
   };
 
   // Attendee Action: Join session
-  const handleJoinRoom = (name: string, code: string) => {
+  const handleJoinRoom = (name: string, code: string, guestId?: string) => {
     setConnectionError('');
     const s = connectSocket();
     const upperCode = code.toUpperCase();
 
-    s.emit('join_room', { code: upperCode, name }, (res: {
+    // 1. Get or generate permanent guestId if not supplied
+    let activeGuestId = guestId;
+    if (!activeGuestId) {
+      activeGuestId = localStorage.getItem('guestId') || '';
+      if (!activeGuestId) {
+        activeGuestId = typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('guestId', activeGuestId);
+      }
+    }
+    
+    // Save details to localStorage
+    localStorage.setItem('name', name);
+
+    // 2. Emit join_room with guestId
+    s.emit('join_room', { code: upperCode, name, guestId: activeGuestId }, (res: {
       success: boolean;
       attendeeId?: string;
       isFrozen?: boolean;
@@ -238,16 +206,6 @@ function AppContent() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLocalError('');
-    clearError();
-    await signInWithGoogle();
-  };
-
-  if (authLoading) {
-    return <LoadingScreen />;
-  }
-
   return (
     <div className="bg-zinc-950 min-h-screen text-zinc-100 font-sans selection:bg-zinc-800">
       {connectionError && (
@@ -258,77 +216,23 @@ function AppContent() {
       )}
 
       {route === 'landing' && (
-        !authenticatedUser ? (
-          <div className="min-h-screen bg-zinc-950 flex flex-col justify-between p-6 text-zinc-100 selection:bg-zinc-800 selection:text-white">
-            {/* Header */}
-            <header className="w-full max-w-4xl mx-auto flex items-center justify-between py-4 border-b border-zinc-900">
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-9 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-950 font-bold text-lg shadow-lg shadow-zinc-100/10">
-                  P
-                </div>
-                <span className="font-bold text-xl tracking-tight text-white">PresentSync</span>
-              </div>
-            </header>
+        <LandingPage
+          onCreateRoom={handleCreateRoom}
+          onJoinRoom={(name, code) => handleJoinRoom(name, code)}
+          initialRoomCode={roomCode}
+          initialName={attendeeName}
+        />
+      )}
 
-            {/* Login Wall */}
-            <main className="w-full max-w-md mx-auto my-auto py-12 flex flex-col gap-8">
-              <div className="text-center space-y-2">
-                <h1 className="text-4xl font-extrabold tracking-tight text-white">
-                  PresentSync Command Center
-                </h1>
-                <p className="text-zinc-400 text-sm">
-                  Real-time synchronization for presenter-led interactive rooms.
-                </p>
-              </div>
-
-              <div className="bg-zinc-900/40 border border-zinc-900 rounded-2xl p-8 shadow-2xl backdrop-blur-md space-y-6 animate-fade-in">
-                <div className="space-y-1 text-center">
-                  <h2 className="text-xl font-bold text-white">
-                    Sign In Required
-                  </h2>
-                  <p className="text-zinc-400 text-xs">
-                    Sign in with Google to access presenter tools & join live rooms
-                  </p>
-                </div>
-
-                {(localError || authError) && (
-                  <div className="text-xs font-semibold text-rose-550 bg-rose-950/20 border border-rose-950/50 rounded-lg p-3 relative flex items-center justify-between">
-                    <span>{localError || authError}</span>
-                    <button
-                      onClick={() => { setLocalError(''); clearError(); }}
-                      className="text-rose-400 hover:text-rose-200 cursor-pointer font-bold text-sm ml-2"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleGoogleSignIn}
-                  type="button"
-                  className="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 cursor-pointer shadow-lg hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  <Chrome className="h-5 w-5 text-violet-650" />
-                  <span>Continue with Google</span>
-                </button>
-              </div>
-            </main>
-
-            {/* Footer */}
-            <footer className="w-full max-w-4xl mx-auto py-4 text-center text-xs text-zinc-650 border-t border-zinc-900">
-              © 2026 PresentSync Inc. All rights reserved. Real-time sub-second sync active.
-            </footer>
-          </div>
-        ) : (
-          <LandingPage
-            onCreateRoom={handleCreateRoom}
-            onJoinRoom={handleJoinRoom}
-            initialRoomCode={roomCode}
-            initialName={authenticatedUser.name}
-            initialPicture={authenticatedUser.picture}
-            onLogout={handleLogout}
-          />
-        )
+      {route === 'join' && (
+        <JoinSession
+          roomCode={roomCode}
+          onJoin={(name, guestId) => handleJoinRoom(name, roomCode, guestId)}
+          onCancel={() => {
+            window.history.pushState({}, '', '/');
+            setRoute('landing');
+          }}
+        />
       )}
 
       {route === 'host' && socket && (
@@ -352,4 +256,4 @@ function AppContent() {
   );
 }
 
-export default App;;
+export default App;

@@ -15,7 +15,6 @@ import { Session } from './models/Session.js';
 import { Attendee } from './models/Attendee.js';
 import { Resource } from './models/Resource.js';
 import { QuizData } from './models/QuizData.js';
-import firebaseAuthRouter from './routes/firebaseAuth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,9 +51,6 @@ app.use(cors({
 
 app.use(cookieParser());
 app.use(express.json());
-
-// Mount authentication router
-app.use('/api/auth', firebaseAuthRouter);
 
 // Create uploads folder if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -175,8 +171,8 @@ async function endQuizQuestion(code) {
     });
 
     // 2. Persist cumulative scores to the database for all active attendees
-    for (const socketId in room.attendees) {
-      const att = room.attendees[socketId];
+    for (const guestId in room.attendees) {
+      const att = room.attendees[guestId];
       await Attendee.findByIdAndUpdate(att.attendeeDbId, {
         score: att.score,
         correctAnswersCount: att.correctAnswersCount,
@@ -199,19 +195,21 @@ async function endQuizQuestion(code) {
       name: a.name,
       isLost: a.isLost,
       score: a.score,
-      correctAnswersCount: a.correctAnswersCount
+      correctAnswersCount: a.correctAnswersCount,
+      isOnline: a.isOnline
     }));
     io.to(`host:${code}`).emit('attendee_roster_update', roster);
 
     // 5. Send results to each attendee socket individually
-    for (const socketId in room.attendees) {
-      const att = room.attendees[socketId];
-      const resp = responses[socketId];
+    for (const guestId in room.attendees) {
+      const att = room.attendees[guestId];
+      if (!att.socketId) continue;
+      const resp = responses[guestId];
 
       // Calculate rank
       const rank = leaderboard.findIndex(x => x.id === att.attendeeDbId.toString()) + 1;
 
-      io.to(socketId).emit('quiz_question_ended', {
+      io.to(att.socketId).emit('quiz_question_ended', {
         isCorrect: resp ? resp.isCorrect : false,
         scoreAdded: resp ? resp.points : 0,
         totalScore: att.score,
@@ -240,8 +238,9 @@ async function endQuizQuestion(code) {
 setInterval(() => {
   for (const code in activeRooms) {
     const room = activeRooms[code];
-    const totalCount = Object.keys(room.attendees).length;
-    const lostCount = Object.values(room.attendees).filter(a => a.isLost).length;
+    const onlineAttendees = Object.values(room.attendees).filter(a => a.isOnline !== false);
+    const totalCount = onlineAttendees.length;
+    const lostCount = onlineAttendees.filter(a => a.isLost).length;
     const percentage = totalCount > 0 ? Math.round((lostCount / totalCount) * 100) : 0;
 
     // Save transient metric point
@@ -328,7 +327,7 @@ io.on('connection', (socket) => {
   });
 
   // 2. Attendee joins room
-  socket.on('join_room', async ({ code, name }, callback) => {
+  socket.on('join_room', async ({ code, name, guestId }, callback) => {
     try {
       const roomCode = code.toUpperCase();
       const room = activeRooms[roomCode];
@@ -347,27 +346,43 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'Session not found in DB.' });
       }
 
-      // Create attendee in database
-      const dbAttendee = new Attendee({
-        sessionCode: roomCode,
-        name,
-        status: 'active',
-      });
-      await dbAttendee.save();
+      const existingAttendee = room.attendees[guestId];
+      let dbAttendee;
 
-      // Add to in-memory active list
-      room.attendees[socket.id] = {
+      if (existingAttendee) {
+        dbAttendee = await Attendee.findById(existingAttendee.attendeeDbId);
+        if (dbAttendee) {
+          dbAttendee.status = 'active';
+          dbAttendee.leftAt = null;
+          await dbAttendee.save();
+        }
+      }
+
+      if (!dbAttendee) {
+        dbAttendee = new Attendee({
+          sessionId: roomCode,
+          name,
+          status: 'active',
+        });
+        await dbAttendee.save();
+      }
+
+      // Add/Update in-memory active list
+      room.attendees[guestId] = {
+        socketId: socket.id,
         attendeeDbId: dbAttendee._id,
         name,
-        isLost: false,
-        score: 0,
-        correctAnswersCount: 0,
+        isLost: existingAttendee ? existingAttendee.isLost : false,
+        score: existingAttendee ? existingAttendee.score : 0,
+        correctAnswersCount: existingAttendee ? existingAttendee.correctAnswersCount : 0,
+        isOnline: true,
       };
 
       userContext.role = 'attendee';
       userContext.roomCode = roomCode;
       userContext.name = name;
       userContext.attendeeId = dbAttendee._id;
+      userContext.guestId = guestId;
 
       socket.join(`room:${roomCode}`);
 
@@ -377,7 +392,8 @@ io.on('connection', (socket) => {
         name: a.name,
         isLost: a.isLost,
         score: a.score,
-        correctAnswersCount: a.correctAnswersCount
+        correctAnswersCount: a.correctAnswersCount,
+        isOnline: a.isOnline
       }));
 
       io.to(`host:${roomCode}`).emit('attendee_roster_update', roster);
@@ -397,12 +413,12 @@ io.on('connection', (socket) => {
           options: room.activeQuiz.options,
           timeLimit: room.activeQuiz.timeLimit,
           timeLeft: room.activeQuiz.timeLeft,
-          hasVoted: !!room.activeQuiz.responses[socket.id],
+          hasVoted: !!room.activeQuiz.responses[guestId],
         } : null,
         quizQuestionsCount: room.quizQuestions.length,
       });
 
-      console.log(`Attendee [${name}] joined room [${roomCode}].`);
+      console.log(`Attendee [${name}] (guestId: ${guestId}) joined room [${roomCode}].`);
     } catch (error) {
       console.error('Error in join_room:', error);
       callback({ success: false, error: error.message });
@@ -468,10 +484,11 @@ io.on('connection', (socket) => {
     if (userContext.role !== 'attendee') return;
     const code = userContext.roomCode;
     const room = activeRooms[code];
+    const guestId = userContext.guestId;
 
-    if (!room || !room.activePoll) return;
+    if (!room || !room.activePoll || !guestId) return;
 
-    room.activePoll.responses[socket.id] = {
+    room.activePoll.responses[guestId] = {
       name: userContext.name,
       optionIndex: optionIndex,
     };
@@ -531,10 +548,11 @@ io.on('connection', (socket) => {
     if (userContext.role !== 'attendee') return;
     const code = userContext.roomCode;
     const room = activeRooms[code];
+    const guestId = userContext.guestId;
 
-    if (!room || !room.attendees[socket.id]) return;
+    if (!room || !guestId || !room.attendees[guestId]) return;
 
-    room.attendees[socket.id].isLost = isLost;
+    room.attendees[guestId].isLost = isLost;
 
     // Send instant update to host roster
     const roster = Object.values(room.attendees).map(a => ({
@@ -542,7 +560,8 @@ io.on('connection', (socket) => {
       name: a.name,
       isLost: a.isLost,
       score: a.score,
-      correctAnswersCount: a.correctAnswersCount
+      correctAnswersCount: a.correctAnswersCount,
+      isOnline: a.isOnline
     }));
     io.to(`host:${code}`).emit('attendee_roster_update', roster);
   });
@@ -654,11 +673,12 @@ io.on('connection', (socket) => {
     if (userContext.role !== 'attendee') return;
     const code = userContext.roomCode;
     const room = activeRooms[code];
+    const guestId = userContext.guestId;
 
-    if (!room || !room.activeQuiz) return;
+    if (!room || !room.activeQuiz || !guestId) return;
 
     // Check if player has already submitted an answer for this question
-    if (room.activeQuiz.responses[socket.id]) return;
+    if (room.activeQuiz.responses[guestId]) return;
 
     const timeElapsed = (Date.now() - room.activeQuiz.startedAt) / 1000;
     const isCorrect = optionIndex === room.activeQuiz.correctOptionIndex;
@@ -673,7 +693,7 @@ io.on('connection', (socket) => {
     }
 
     // Save response in activeQuiz state
-    room.activeQuiz.responses[socket.id] = {
+    room.activeQuiz.responses[guestId] = {
       name: userContext.name,
       optionIndex,
       isCorrect,
@@ -681,7 +701,7 @@ io.on('connection', (socket) => {
     };
 
     // Update attendee cumulative scores in active room roster
-    const attendee = room.attendees[socket.id];
+    const attendee = room.attendees[guestId];
     if (attendee) {
       attendee.score += points;
       if (isCorrect) {
@@ -690,7 +710,7 @@ io.on('connection', (socket) => {
     }
 
     // Notify host that another response came in
-    const totalConnectedAttendees = Object.keys(room.attendees).length;
+    const totalConnectedAttendees = Object.values(room.attendees).filter(a => a.isOnline).length;
     const submittedCount = Object.keys(room.activeQuiz.responses).length;
 
     io.to(`host:${code}`).emit('attendee_quiz_answered', {
@@ -731,10 +751,10 @@ io.on('connection', (socket) => {
       console.log(`Host buzzed ALL users in room [${code}].`);
     } else if (Array.isArray(attendeeIds)) {
       // Find matching socket IDs and buzz them
-      for (const socketId in room.attendees) {
-        const attendee = room.attendees[socketId];
-        if (attendeeIds.includes(attendee.attendeeDbId.toString())) {
-          io.to(socketId).emit('receive_buzz');
+      for (const guestId in room.attendees) {
+        const attendee = room.attendees[guestId];
+        if (attendee.socketId && attendeeIds.includes(attendee.attendeeDbId.toString())) {
+          io.to(attendee.socketId).emit('receive_buzz');
         }
       }
       console.log(`Host buzzed targeted users in room [${code}].`);
@@ -794,17 +814,19 @@ io.on('connection', (socket) => {
 
     if (userContext.role === 'attendee') {
       const room = activeRooms[code];
-      const attendeeData = room.attendees[socket.id];
+      const guestId = userContext.guestId;
+      const attendeeData = room.attendees[guestId];
 
-      if (attendeeData) {
+      if (attendeeData && attendeeData.socketId === socket.id) {
         // Update DB attendee status
         await Attendee.findByIdAndUpdate(attendeeData.attendeeDbId, {
           status: 'inactive',
           leftAt: new Date()
         });
 
-        // Remove from in-memory room
-        delete room.attendees[socket.id];
+        // Mark as offline in memory rather than deleting
+        attendeeData.isOnline = false;
+        attendeeData.socketId = null;
 
         // Notify host
         const roster = Object.values(room.attendees).map(a => ({
@@ -812,11 +834,12 @@ io.on('connection', (socket) => {
           name: a.name,
           isLost: a.isLost,
           score: a.score,
-          correctAnswersCount: a.correctAnswersCount
+          correctAnswersCount: a.correctAnswersCount,
+          isOnline: a.isOnline
         }));
         io.to(`host:${code}`).emit('attendee_roster_update', roster);
 
-        console.log(`Attendee [${userContext.name}] disconnected from room [${code}].`);
+        console.log(`Attendee [${userContext.name}] (guestId: ${guestId}) disconnected from room [${code}].`);
       }
     } else if (userContext.role === 'host') {
       console.log(`Host disconnected from room [${code}]. Reconnection window open.`);

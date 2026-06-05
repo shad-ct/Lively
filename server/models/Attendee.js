@@ -1,15 +1,15 @@
 import mongoose from 'mongoose';
 
 const attendeeSchema = new mongoose.Schema({
-  sessionCode: {
-    type: String,
-    required: true,
-    index: true,
-  },
   name: {
     type: String,
     required: true,
     trim: true,
+  },
+  sessionId: {
+    type: String,
+    required: true,
+    index: true,
   },
   joinedAt: {
     type: Date,

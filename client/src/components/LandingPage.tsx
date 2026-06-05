@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Presentation, User, Hash, ArrowRight } from 'lucide-react';
-import { ProfileModal } from './ProfileModal';
 
 interface LandingPageProps {
   onCreateRoom: () => void;
   onJoinRoom: (name: string, code: string) => void;
   initialRoomCode?: string;
   initialName?: string;
-  initialPicture?: string;
-  onLogout?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -16,16 +13,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onJoinRoom,
   initialRoomCode = '',
   initialName = '',
-  initialPicture = '',
-  onLogout,
 }) => {
   const [name, setName] = useState(initialName);
   const [code, setCode] = useState(initialRoomCode.toUpperCase());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Sync attendee name with profile changes
+  // Sync attendee name with initialName
   useEffect(() => {
     setName(initialName);
   }, [initialName]);
@@ -59,32 +53,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
         <div className="flex items-center gap-4 text-sm">
           {initialName && (
-            <button 
-              onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center gap-2 hover:opacity-85 transition cursor-pointer text-left focus:outline-none"
-              title="Edit Profile"
-            >
-              {initialPicture ? (
-                <img 
-                  src={initialPicture} 
-                  alt="Avatar" 
-                  className="h-8 w-8 rounded-full border border-zinc-805 bg-zinc-900 shadow-sm shadow-violet-500/10"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center">
-                  <User className="h-4 w-4 text-zinc-550" />
-                </div>
-              )}
-              <span className="text-zinc-400 font-medium hidden sm:inline">Hello, <strong className="text-zinc-200">{initialName}</strong></span>
-            </button>
-          )}
-          {onLogout && (
-            <button 
-              onClick={onLogout}
-              className="text-xs bg-zinc-905 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-350 hover:text-white px-3.5 py-2 rounded-xl cursor-pointer transition-colors"
-            >
-              Sign Out
-            </button>
+            <span className="text-zinc-400 font-medium">Hello, <strong className="text-zinc-200">{initialName}</strong></span>
           )}
         </div>
       </header>
@@ -173,14 +142,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-4xl mx-auto py-4 text-center text-xs text-zinc-600 border-t border-zinc-900">
+      <footer className="w-full max-w-4xl mx-auto py-4 text-center text-xs text-zinc-650 border-t border-zinc-900">
         © 2026 PresentSync Inc. All rights reserved. Real-time sub-second sync active.
       </footer>
-
-      <ProfileModal 
-        isOpen={isProfileModalOpen} 
-        onClose={() => setIsProfileModalOpen(false)} 
-      />
     </div>
   );
 };

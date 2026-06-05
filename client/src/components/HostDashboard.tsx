@@ -11,6 +11,7 @@ interface Attendee {
   isLost: boolean;
   score: number;
   correctAnswersCount: number;
+  isOnline?: boolean;
 }
 
 interface ResourceItem {
@@ -595,10 +596,12 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                   attendees.map(attendee => (
                     <div 
                       key={attendee.id}
-                      className={`flex items-center justify-between p-3 rounded-xl border text-sm transition-colors ${
-                        attendee.isLost 
-                          ? 'bg-rose-950/20 border-rose-900/60 text-rose-200' 
-                          : 'bg-zinc-950/50 border-zinc-900 text-zinc-300'
+                      className={`flex items-center justify-between p-3 rounded-xl border text-sm transition-all duration-300 ${
+                        attendee.isOnline === false
+                          ? 'bg-zinc-950/20 border-zinc-955/50 text-zinc-650 opacity-50'
+                          : attendee.isLost 
+                            ? 'bg-rose-950/20 border-rose-900/60 text-rose-200' 
+                            : 'bg-zinc-950/50 border-zinc-900 text-zinc-300'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -606,7 +609,8 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                           type="checkbox"
                           checked={selectedAttendees.includes(attendee.id)}
                           onChange={() => toggleSelectAttendee(attendee.id)}
-                          className="h-4 w-4 rounded border-zinc-800 bg-zinc-950 text-amber-500 focus:ring-amber-500/20 cursor-pointer"
+                          disabled={attendee.isOnline === false}
+                          className="h-4 w-4 rounded border-zinc-800 bg-zinc-950 text-amber-500 focus:ring-amber-500/20 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         />
                         <div className="truncate min-w-0">
                           <span className="font-medium block truncate">{attendee.name}</span>
@@ -614,10 +618,12 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                         </div>
                       </div>
                       <span className="flex items-center gap-1 text-xs flex-shrink-0">
-                        {attendee.isLost ? (
-                          <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                        {attendee.isOnline === false ? (
+                          <span className="h-2 w-2 rounded-full bg-zinc-700" title="Offline"></span>
+                        ) : attendee.isLost ? (
+                          <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" title="Lost"></span>
                         ) : (
-                          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" title="Online"></span>
                         )}
                       </span>
                     </div>

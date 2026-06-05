@@ -5,7 +5,17 @@ import { HostDashboard } from './components/HostDashboard';
 import { AttendeeView } from './components/AttendeeView';
 import { JoinSession } from './components/JoinSession';
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.'))) {
+    return `http://${window.location.hostname}:5000`;
+  }
+  return import.meta.env.VITE_SERVER_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+};
+
+export const BACKEND_URL = getBackendUrl();
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_URL || BACKEND_URL;
 
 function App() {

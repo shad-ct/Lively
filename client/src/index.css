@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-zinc-950: #09090b;
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-50: #fafafa;
+}
+
+body {
+  background-color: #09090b;
+  color: #f4f4f5;
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* Custom Scrollbar for sleek UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Blur transition effect */
+.blur-overlay-transition {
+  backdrop-filter: blur(16px);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pulse animation for freeze screen */
+@keyframes freezePulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-freeze-pulse {
+  animation: freezePulse 3s infinite ease-in-out;
+}

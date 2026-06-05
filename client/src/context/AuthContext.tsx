@@ -30,6 +30,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1' || 
+       window.location.hostname.startsWith('192.168.'))) {
+    return `http://${window.location.hostname}:5000`;
+  }
+  return import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+};
+
+export const BACKEND_URL = getBackendUrl();
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -56,8 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchConfigAndInit = async () => {
       try {
-        const backendUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-        const response = await axios.get(`${backendUrl}/api/auth/config`);
+        const response = await axios.get(`${BACKEND_URL}/api/auth/config`);
         
         // Initialize Firebase dynamically with fetched configuration parameters
         const activeAuth = initializeFirebase(response.data);
@@ -69,9 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
               setFirebaseUser(currentFirebaseUser);
               const idToken = await currentFirebaseUser.getIdToken(true);
-              const backendUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
 
-              const handshakeRes = await axios.post(`${backendUrl}/api/auth/firebase`, { idToken }, {
+              const handshakeRes = await axios.post(`${BACKEND_URL}/api/auth/firebase`, { idToken }, {
                 headers: {
                   'Content-Type': 'application/json',
                 },
@@ -144,8 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const backendUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-      const response = await axios.post(`${backendUrl}/api/auth/complete-setup`, { name, picture }, {
+      const response = await axios.post(`${BACKEND_URL}/api/auth/complete-setup`, { name, picture }, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -174,8 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const backendUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
-      await axios.post(`${backendUrl}/api/auth/logout`, {}, { withCredentials: true });
+      await axios.post(`${BACKEND_URL}/api/auth/logout`, {}, { withCredentials: true });
       await signOut(auth);
       setUser(null);
       setFirebaseUser(null);

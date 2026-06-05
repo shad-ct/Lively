@@ -3,16 +3,51 @@ import { io, Socket } from 'socket.io-client';
 import { LandingPage } from './components/LandingPage';
 import { HostDashboard } from './components/HostDashboard';
 import { AttendeeView } from './components/AttendeeView';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth, BACKEND_URL } from './context/AuthContext';
 import { Chrome } from 'lucide-react';
 
-const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_URL || BACKEND_URL;
 
 function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
+  );
+}
+
+function LoadingScreen() {
+  const [showColdStartMessage, setShowColdStartMessage] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowColdStartMessage(true);
+    }, 4500); // Show after 4.5 seconds of loading
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-center select-none text-zinc-100">
+      <div className="space-y-6 max-w-sm animate-fade-in">
+        <div className="relative inline-block">
+          <div className="h-12 w-12 rounded-full border-t-2 border-r-2 border-violet-500 animate-spin mx-auto"></div>
+        </div>
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-white tracking-tight">PresentSync Authentication</h2>
+          <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest animate-pulse">
+            Securing session handshake keys...
+          </p>
+          {showColdStartMessage && (
+            <div className="text-amber-400/90 text-xs mt-2 bg-amber-950/20 border border-amber-950/50 rounded-xl p-3.5 animate-fade-in space-y-1">
+              <div className="font-bold">⚠️ Server is waking up</div>
+              <div className="text-zinc-400">
+                The free-tier hosting server takes around 50 seconds to boot up on the first load. Thank you for your patience!
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -23,11 +58,11 @@ function AppContent() {
   const [attendeeName, setAttendeeName] = useState('');
 
   // Authentication context
-  const { 
-    user: authenticatedUser, 
-    loading: authLoading, 
-    error: authError, 
-    signInWithGoogle, 
+  const {
+    user: authenticatedUser,
+    loading: authLoading,
+    error: authError,
+    signInWithGoogle,
     logOut: handleLogout,
     clearError
   } = useAuth();
@@ -38,7 +73,7 @@ function AppContent() {
   // Socket state
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connectionError, setConnectionError] = useState('');
-  
+
   // Cache state from join success
   const [attendeeState, setAttendeeState] = useState<{
     isFrozen: boolean;
@@ -132,7 +167,7 @@ function AppContent() {
         setRoomCode(res.code);
         // Save token to session storage in case of refresh (optional enhancement)
         sessionStorage.setItem(`host_token_${res.code}`, res.hostToken);
-        
+
         // Push state & update route
         window.history.pushState({}, '', '/host');
         setRoute('host');
@@ -210,21 +245,7 @@ function AppContent() {
   };
 
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-center select-none text-zinc-100">
-        <div className="space-y-6 max-w-sm animate-fade-in">
-          <div className="relative inline-block">
-            <div className="h-12 w-12 rounded-full border-t-2 border-r-2 border-violet-500 animate-spin mx-auto"></div>
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">PresentSync Authentication</h2>
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-widest">
-              Securing session handshake keys...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -273,7 +294,7 @@ function AppContent() {
                 {(localError || authError) && (
                   <div className="text-xs font-semibold text-rose-550 bg-rose-950/20 border border-rose-950/50 rounded-lg p-3 relative flex items-center justify-between">
                     <span>{localError || authError}</span>
-                    <button 
+                    <button
                       onClick={() => { setLocalError(''); clearError(); }}
                       className="text-rose-400 hover:text-rose-200 cursor-pointer font-bold text-sm ml-2"
                     >

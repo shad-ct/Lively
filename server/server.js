@@ -23,9 +23,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS to allow frontend connections
+// Configure CORS to allow frontend connections dynamically
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:4173',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin
+    if (!origin) return callback(null, true);
+    
+    const isLocalhost = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+    if (allowedOrigins.includes(origin) || isLocalhost) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 }));
@@ -58,7 +78,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Database Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/presentsync';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/presentsync';
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB successfully.'))
   .catch((err) => console.error('MongoDB connection error:', err));

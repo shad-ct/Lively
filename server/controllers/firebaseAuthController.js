@@ -55,12 +55,14 @@ export const firebaseLogin = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true';
+
     // 4. Store JWT and profile data as cookies
     // HTTP-only cookie for secure JWT storage (prevents XSS attacks from reading the token)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // Set to true if running under HTTPS/Production
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
@@ -72,7 +74,8 @@ export const firebaseLogin = async (req, res) => {
       role: user.role,
       needsProfileSetup: user.needsProfileSetup || false,
     }), {
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
@@ -138,8 +141,8 @@ export const completeProfileSetup = async (req, res) => {
 
     res.cookie('token', newToken, {
       httpOnly: true,
-      secure: false, // Set to true if running under HTTPS/Production
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     });
 
@@ -150,7 +153,8 @@ export const completeProfileSetup = async (req, res) => {
       role: user.role,
       needsProfileSetup: false,
     }), {
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     });
 
@@ -171,9 +175,14 @@ export const completeProfileSetup = async (req, res) => {
 };
 
 export const logout = (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true';
+  const baseOptions = {
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+  };
   // Clear the cookies
-  res.clearCookie('token');
-  res.clearCookie('user');
+  res.clearCookie('token', { ...baseOptions, httpOnly: true });
+  res.clearCookie('user', baseOptions);
   res.json({ success: true, message: 'Logged out successfully.' });
 };
 
